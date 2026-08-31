@@ -1,0 +1,60 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#b00020">
+<link rel="manifest" href="manifest.webmanifest">
+<title>Trésorerie Syndicat</title>
+<style>
+body{font-family:system-ui;margin:0;background:#f4f5f7;color:#222;padding-bottom:70px}
+header{background:white;padding:16px;border-bottom:1px solid #ddd;position:sticky;top:0}
+main{padding:12px;max-width:900px;margin:auto}.page{display:none}.page.active{display:block}
+.card{background:white;padding:14px;border-radius:14px;margin-bottom:12px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.kpi{background:white;padding:14px;border-radius:14px}
+.kpi b{display:block;font-size:20px;margin-top:4px}label{display:block;font-weight:700;font-size:13px;margin:10px 0 4px}
+input,select,textarea{width:100%;padding:10px;border:1px solid #bbb;border-radius:9px;box-sizing:border-box}
+button{padding:10px;border:1px solid #aaa;border-radius:9px;background:white;font-weight:650}
+.primary{background:#b00020;color:white;border-color:#b00020}nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:white;border-top:1px solid #ddd}
+nav button{flex:1;border:0;border-radius:0;font-size:11px}.muted{color:#666;font-size:13px}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 4px;border-bottom:1px solid #ddd;text-align:left}.n{text-align:right}
+</style></head><body>
+<header><b style="font-size:20px">Trésorerie Syndicat</b><div id="orgHead" class="muted">Organisation syndicale</div></header>
+<main>
+<section id="home" class="page active"><div class="grid">
+<div class="kpi">Solde<b id="bal">0 €</b></div><div class="kpi">Résultat annuel<b id="res">0 €</b></div>
+<div class="kpi">Recettes<b id="inc">0 €</b></div><div class="kpi">Dépenses<b id="exp">0 €</b></div></div>
+<div class="card"><b>État du dossier</b><p id="status" class="muted"></p></div></section>
+
+<section id="ops" class="page"><div class="card"><h2>Nouvelle opération</h2>
+<label>Date</label><input id="dt" type="date"><label>Type</label><select id="kind" onchange="cats()"><option>Recette</option><option>Dépense</option></select>
+<label>Libellé</label><input id="lab"><label>Montant (€)</label><input id="amt" type="number" step="0.01">
+<label>Catégorie</label><select id="cat"></select><label>Compte</label><select id="acct"><option>Banque</option><option>Caisse</option></select>
+<label>Référence justificatif</label><input id="ref"><button class="primary" onclick="add()" style="margin-top:12px">Enregistrer</button></div>
+<div class="card"><h2>Journal</h2><div style="overflow:auto"><table><thead><tr><th>Date</th><th>Libellé</th><th>Catégorie</th><th class="n">Montant</th><th></th></tr></thead><tbody id="rows"></tbody></table></div></div></section>
+
+<section id="annual" class="page"><div class="card"><h2>Comptes annuels</h2><label>Exercice</label><input id="yr" type="number" onchange="annual()">
+<div id="annualBox" class="muted" style="margin:12px 0"></div><button class="primary" onclick="report()">Afficher le dossier annuel</button></div></section>
+
+<section id="settings" class="page"><div class="card"><h2>Organisation</h2><label>Nom</label><input id="org"><label>Adresse</label><input id="addr">
+<button class="primary" onclick="saveOrg()" style="margin-top:12px">Enregistrer</button></div>
+<div class="card"><h2>Sauvegarde</h2><button onclick="backup()">Télécharger une sauvegarde</button>
+<label>Restaurer</label><input type="file" accept=".json" onchange="restore(event)"></div></section>
+</main>
+<nav><button onclick="show('home')">Accueil</button><button onclick="show('ops')">Opérations</button><button onclick="show('annual')">Comptes</button><button onclick="show('settings')">Réglages</button></nav>
+<script>
+const C={Recette:[["Cotisations reçues","Cotisations","cotisations"],["Subventions","Subventions","subventions"],["Dons / soutiens","Dons et autres produits","courant"],["Activités","Produits des activités","courant"],["Produits financiers","Produits financiers","financier"],["Autres recettes","Autres produits","courant"]],Dépense:[["Cotisations reversées","Cotisations reversées","reversement"],["Fournitures","Achats et fournitures","non"],["Déplacements","Déplacements et missions","non"],["Communication","Communication","non"],["Locaux","Locations et charges de locaux","non"],["Formation","Formation","non"],["Actions syndicales","Solidarité et actions syndicales","non"],["Frais bancaires","Frais bancaires","non"],["Autres dépenses","Autres charges","non"]]};
+let d=JSON.parse(localStorage.getItem("tsynd")||'{"tx":[],"org":{"name":"Organisation syndicale","address":""}}');
+const euro=x=>new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR"}).format(x||0), esc=s=>String(s||"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
+function persist(){localStorage.setItem("tsynd",JSON.stringify(d))}function show(i){document.querySelectorAll(".page").forEach(x=>x.classList.remove("active"));document.getElementById(i).classList.add("active");render()}
+function cats(){cat.innerHTML="";C[kind.value].forEach((x,i)=>{let o=document.createElement("option");o.value=i;o.textContent=x[0];cat.appendChild(o)})}
+function add(){let a=+amt.value,c=C[kind.value][+cat.value];if(!dt.value||!lab.value.trim()||a<=0){alert("Date, libellé et montant obligatoires.");return}d.tx.push({id:Date.now(),date:dt.value,kind:kind.value,label:lab.value.trim(),amount:a,category:c[0],line:c[1],rtype:c[2],account:acct.value,reference:ref.value});persist();lab.value="";amt.value="";ref.value="";render()}
+function del(id){if(confirm("Supprimer ?")){d.tx=d.tx.filter(x=>x.id!==id);persist();render()}}
+function calc(y){let tx=d.tx.filter(x=>x.date.startsWith(y+"-")),I={},E={},R=0,V=0;tx.forEach(t=>{let o=t.kind==="Recette"?I:E;o[t.line]=(o[t.line]||0)+t.amount;if(t.kind==="Recette"&&["cotisations","subventions","courant","financier"].includes(t.rtype))R+=t.amount;if(t.rtype==="reversement")V+=t.amount});let legal=Math.max(0,R-V),result=Object.values(I).reduce((a,b)=>a+b,0)-Object.values(E).reduce((a,b)=>a+b,0);let regime=legal<2000?"Livre chronologique possible (< 2 000 €)":legal<=230000?"Bilan, compte de résultat et annexe simplifiés (≤ 230 000 €)":"Comptes complets et commissaire aux comptes requis (> 230 000 €)";return{tx,I,E,R,V,legal,result,regime}}
+function objrows(o){return Object.entries(o).map(([k,v])=>`<tr><td>${esc(k)}</td><td style="text-align:right">${euro(v)}</td></tr>`).join("")||"<tr><td>Aucun mouvement</td><td>0 €</td></tr>"}
+function report(){let y=+yr.value,r=calc(y),tx=r.tx.map(t=>`<tr><td>${t.date}</td><td>${esc(t.kind)}</td><td>${esc(t.label)}</td><td>${esc(t.category)}</td><td>${euro(t.amount)}</td><td>${esc(t.reference)}</td></tr>`).join("");let h=`<html><head><meta charset="utf-8"><style>body{font-family:Arial;margin:30px}table{width:100%;border-collapse:collapse}td,th{border:1px solid #bbb;padding:7px}</style></head><body><button onclick="print()">Imprimer / PDF</button><h1>${esc(d.org.name)}</h1><p>${esc(d.org.address)}</p><h2>Comptes annuels simplifiés ${y}</h2><p><b>${esc(r.regime)}</b><br>Ressources nettes : ${euro(r.legal)}</p><h3>Produits</h3><table>${objrows(r.I)}</table><h3>Charges</h3><table>${objrows(r.E)}</table><p><b>Résultat : ${euro(r.result)}</b></p><h2>Annexe simplifiée</h2><p>Ressources avant reversements : ${euro(r.R)} ; cotisations reversées : ${euro(r.V)} ; ressources nettes : ${euro(r.legal)}.</p><h2>Journal annuel</h2><table><tr><th>Date</th><th>Type</th><th>Libellé</th><th>Catégorie</th><th>Montant</th><th>Référence</th></tr>${tx}</table><h2>Approbation / publication</h2><p>Date d'approbation : ____________</p><p>Organe ayant approuvé : ____________</p><p>Date de publication : ____________</p></body></html>`;let w=open();w.document.write(h);w.document.close()}
+function download(name,txt){let a=document.createElement("a");a.href=URL.createObjectURL(new Blob([txt],{type:"application/json"}));a.download=name;a.click()}
+function backup(){download("Sauvegarde_Tresorerie.json",JSON.stringify(d,null,2))}
+function restore(e){let f=e.target.files[0],r=new FileReader();r.onload=()=>{try{let x=JSON.parse(r.result);if(!Array.isArray(x.tx))throw 0;d=x;persist();render();alert("Sauvegarde restaurée")}catch(_){alert("Fichier invalide")}};r.readAsText(f)}
+function saveOrg(){d.org={name:org.value.trim()||"Organisation syndicale",address:addr.value.trim()};persist();render()}
+function annual(){let r=calc(+yr.value);annualBox.innerHTML=`<b>${esc(r.regime)}</b><br>Ressources retenues : ${euro(r.legal)}<br>Résultat : ${euro(r.result)}`}
+function render(){let y=new Date().getFullYear(),r=calc(y),B=d.tx.reduce((s,t)=>s+(t.kind==="Recette"?t.amount:-t.amount),0);bal.textContent=euro(B);res.textContent=euro(r.result);inc.textContent=euro(Object.values(r.I).reduce((a,b)=>a+b,0));exp.textContent=euro(Object.values(r.E).reduce((a,b)=>a+b,0));status.innerHTML=`${d.tx.length} opération(s).<br>${esc(r.regime)}`;rows.innerHTML=[...d.tx].reverse().map(t=>`<tr><td>${t.date}</td><td>${esc(t.label)}</td><td>${esc(t.category)}</td><td class="n">${t.kind==="Dépense"?"−":"+"}${euro(t.amount)}</td><td><button onclick="del(${t.id})">×</button></td></tr>`).join("");org.value=d.org.name||"";addr.value=d.org.address||"";orgHead.textContent=d.org.name||"Organisation syndicale";annual()}
+dt.value=new Date().toISOString().slice(0,10);yr.value=new Date().getFullYear();cats();render();if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js");
+</script></body></html>
